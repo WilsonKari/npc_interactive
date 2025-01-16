@@ -48,11 +48,27 @@ export class ElevenLabsProvider {
     }
 
     async getVoices(): Promise<Voice[]> {
+        console.log('[LOG 20] ElevenLabsProvider - Obteniendo lista de voces');
         try {
+            console.log('[LOG 21] ElevenLabsProvider - Iniciando solicitud de voces');
             const response = await this.makeRequest('/voices');
+            console.log('[LOG 22] ElevenLabsProvider - Respuesta recibida, procesando JSON');
+            
             const data = await response.json();
+            console.log('[LOG 23] ElevenLabsProvider - Voces obtenidas:', {
+                count: data.voices?.length || 0
+            });
+            
             return data.voices;
         } catch (error) {
+            if (error instanceof Error) {
+                console.error('[ERROR] ElevenLabsProvider - Error obteniendo voces:', {
+                    error: error.message,
+                    stack: error.stack
+                });
+            } else {
+                console.error('[ERROR] ElevenLabsProvider - Error desconocido obteniendo voces:', error);
+            }
             throw new ElevenLabsError(
                 `Error obteniendo voces: ${error instanceof Error ? error.message : 'Error desconocido'}`
             );
@@ -64,21 +80,58 @@ export class ElevenLabsProvider {
         voiceId: string = this.defaultVoiceId,
         voiceSettings: VoiceSettings = this.defaultVoiceSettings
     ): Promise<string> {
+        console.log('[LOG 24] ElevenLabsProvider - Iniciando síntesis de voz', {
+            textLength: text.length,
+            voiceId,
+            voiceSettings
+        });
+        
         try {
             const request: TextToSpeechRequest = {
                 text,
                 voice_settings: voiceSettings,
-                model_id: this.modelId  // Especificando el modelo multilingüe
+                model_id: this.modelId
             };
+
+            console.log('[LOG 25] ElevenLabsProvider - Creando solicitud TTS', {
+                modelId: this.modelId,
+                textPreview: text.slice(0, 50) + (text.length > 50 ? '...' : '')
+            });
 
             const response = await this.makeRequest(`/text-to-speech/${voiceId}`, {
                 method: 'POST',
                 body: JSON.stringify(request),
             });
 
+            console.log('[LOG 26] ElevenLabsProvider - Respuesta recibida, procesando audio');
             const audioBlob = await response.blob();
-            return URL.createObjectURL(audioBlob);
+            
+            console.log('[LOG 27] ElevenLabsProvider - Audio generado', {
+                size: audioBlob.size,
+                type: audioBlob.type
+            });
+
+            const audioUrl = URL.createObjectURL(audioBlob);
+            console.log('[LOG 28] ElevenLabsProvider - URL de audio creada:', {
+                urlPreview: audioUrl.slice(0, 50) + '...'
+            });
+
+            return audioUrl;
         } catch (error) {
+            if (error instanceof Error) {
+                console.error('[ERROR] ElevenLabsProvider - Error sintetizando voz:', {
+                    error: error.message,
+                    stack: error.stack,
+                    textPreview: text.slice(0, 50) + (text.length > 50 ? '...' : ''),
+                    voiceId
+                });
+            } else {
+                console.error('[ERROR] ElevenLabsProvider - Error desconocido sintetizando voz:', {
+                    error,
+                    textPreview: text.slice(0, 50) + (text.length > 50 ? '...' : ''),
+                    voiceId
+                });
+            }
             throw new ElevenLabsError(
                 `Error sintetizando voz: ${error instanceof Error ? error.message : 'Error desconocido'}`
             );

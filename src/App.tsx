@@ -1,4 +1,5 @@
-import { useState } from 'react';
+// src/App.tsx
+import { useState, useEffect } from 'react';
 import { EventContainer } from './components/EventContainer/EventContainer';
 import { NPCContainer, NPCWindow } from './App.styles';
 import { TemplateSelector } from './components/TemplateSelector/TemplateSelector';
@@ -7,6 +8,10 @@ import { getCurrentPrompt } from './services/api/ai/config/openai/config';
 import { NPCTemplateType } from './services/api/ai/config/openai/templates';
 import { applyTemplate } from './services/api/ai/config/openai/config';
 import { useElevenLabs } from './hooks/useElevenLabs';
+import { tiktokService } from './services/api/tiktok/tiktokService';
+// import { useTikTokNPCResponse } from './hooks/useTikTokNPCResponse'; // Ya no se necesita aquí
+// import { EventProcessor } from './services/events/eventProcessor'; // Ya no se necesita aquí
+import { NPCEventHandler } from './components/NPCEventHandler'; // Importar el nuevo componente
 
 // Inicializar OpenAI
 const openai = new OpenAI({
@@ -18,6 +23,23 @@ function App() {
     const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
     const [currentTemplate, setCurrentTemplate] = useState<NPCTemplateType>(NPCTemplateType.ENTERTAINER);
     const { synthesizeSpeech, isProcessing, playAudio } = useElevenLabs();
+
+    // Inicialización y manejo de TikTok Service
+    useEffect(() => {
+        console.log('Inicializando servicio TikTok...');
+        
+        // Si no está conectado, reconectar
+        if (!tiktokService.isConnected()) {
+            tiktokService.reconnect();
+        }
+        
+        return () => {
+            // Solo desconectar si estamos navegando fuera de la aplicación
+            if (window.location.pathname === '/') {
+                tiktokService.disconnect();
+            }
+        };
+    }, []);
 
     const handleTemplateSelect = async (template: NPCTemplateType) => {
         setCurrentTemplate(template);
@@ -40,9 +62,9 @@ function App() {
             const prompt = getCurrentPrompt();
             const completion = await openai.chat.completions.create({
                 messages: [
-                    { 
-                        role: "system", 
-                        content: prompt 
+                    {
+                        role: "system",
+                        content: prompt
                     },
                     {
                         role: "user",
@@ -75,8 +97,9 @@ function App() {
     return (
         <NPCContainer>
             <NPCWindow>
+                <NPCEventHandler /> {/* Renderizar el nuevo componente */}
                 <EventContainer />
-                <button 
+                <button
                     onClick={startInteraction}
                     disabled={isProcessing}
                 >

@@ -115,11 +115,11 @@ export const DEFAULT_PERSONALITY_VARIATIONS: PersonalityVariations = {
 
 // Default OpenAI Configuration
 export const DEFAULT_OPENAI_CONFIG: OpenAIConfigType = {
-    apiKey: '',
+    apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
     models: {
-        chat: OpenAIModel.GPT4,
-        completion: OpenAIModel.GPT4_MINI,
-        default: OpenAIModel.GPT4_PREVIEW
+        chat: OpenAIModel.GPT4o_MINI,
+        completion: OpenAIModel.GPT4o_MINI,
+        default: OpenAIModel.GPT4o_MINI
     },
     defaultParams: {
         temperature: 0.7,

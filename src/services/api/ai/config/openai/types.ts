@@ -2,7 +2,8 @@
 export enum OpenAIModel {
     GPT4 = 'gpt-4',
     GPT4_MINI = 'gpt-4-mini',
-    GPT4_PREVIEW = 'gpt-4-1106-preview'
+    GPT4_PREVIEW = 'gpt-4-1106-preview',
+    GPT4o_MINI = 'gpt-4o-mini-2024-07-18'
 }
 
 export enum SystemLanguage {

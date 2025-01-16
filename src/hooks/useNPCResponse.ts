@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useAIResponse } from './useAIResponse';
 import { useElevenLabs } from './useElevenLabs';
 
@@ -12,11 +12,15 @@ interface UseNPCResponseReturn {
     isProcessing: boolean;
     error: Error | null;
     stopAudio: () => void;
+    currentText: string;
 }
 
 export const useNPCResponse = (): UseNPCResponseReturn => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<Error | null>(null);
+    const [currentText, setCurrentText] = useState<string>('');
+    const accumulatedTextRef = useRef<string>('');
+    const voiceProcessingTimeout = useRef<NodeJS.Timeout>();
 
     const { generateResponse: generateAIResponse } = useAIResponse();
     const { synthesizeSpeech, stopAudio } = useElevenLabs();
@@ -24,22 +28,48 @@ export const useNPCResponse = (): UseNPCResponseReturn => {
     const generateResponse = useCallback(async (input: string): Promise<NPCResponse> => {
         setIsProcessing(true);
         setError(null);
+        setCurrentText('');
+        accumulatedTextRef.current = '';
         let audioUrl: string | null = null;
 
         try {
-            // 1. Generar respuesta de texto con OpenAI
-            const textResponse = await generateAIResponse(input);
+            // Procesar el texto con streaming
+            const response = await generateAIResponse(
+                input,
+                // Callback de streaming
+                (chunk) => {
+                    accumulatedTextRef.current += chunk;
+                    setCurrentText(accumulatedTextRef.current);
 
-            // 2. Convertir texto a voz con ElevenLabs
-            try {
-                audioUrl = await synthesizeSpeech(textResponse);
-            } catch (voiceError) {
-                console.error('Error en la síntesis de voz:', voiceError);
-                // Continuamos con la respuesta de texto aunque falle la voz
-            }
+                    // Programar síntesis de voz si hay suficiente texto
+                    if (voiceProcessingTimeout.current) {
+                        clearTimeout(voiceProcessingTimeout.current);
+                    }
+
+                    if (accumulatedTextRef.current.length > 50) {
+                        voiceProcessingTimeout.current = setTimeout(async () => {
+                            try {
+                                audioUrl = await synthesizeSpeech(accumulatedTextRef.current);
+                            } catch (error) {
+                                console.error('Error en síntesis de voz:', error);
+                            }
+                        }, 500);
+                    }
+                },
+                // Callback de completación
+                async (fullText) => {
+                    if (!audioUrl) {
+                        try {
+                            audioUrl = await synthesizeSpeech(fullText);
+                        } catch (error) {
+                            console.error('Error en síntesis de voz final:', error);
+                        }
+                    }
+                }
+            );
 
             return {
-                text: textResponse,
+                text: response,
                 audioUrl
             };
         } catch (error) {
@@ -48,6 +78,9 @@ export const useNPCResponse = (): UseNPCResponseReturn => {
             throw e;
         } finally {
             setIsProcessing(false);
+            if (voiceProcessingTimeout.current) {
+                clearTimeout(voiceProcessingTimeout.current);
+            }
         }
     }, [generateAIResponse, synthesizeSpeech]);
 
@@ -55,6 +88,7 @@ export const useNPCResponse = (): UseNPCResponseReturn => {
         generateResponse,
         isProcessing,
         error,
-        stopAudio
+        stopAudio,
+        currentText
     };
 };

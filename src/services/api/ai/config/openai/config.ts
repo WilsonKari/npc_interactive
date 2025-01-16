@@ -61,13 +61,29 @@ export const getCurrentPrompt = (): string => {
 
 // Cliente de OpenAI con mejor manejo de errores
 export const createOpenAIClient = (): OpenAI => {
+    console.log('🔧 OpenAI Config - Creando cliente con config:', { 
+        apiKey: currentConfig.apiKey ? '***' : 'no configurada',
+        organization: currentConfig.organization || 'no configurada',
+        environment: import.meta.env.MODE
+    });
+
+    if (!currentConfig.apiKey) {
+        console.error('❌ OpenAI Config - API Key no configurada');
+        throw new OpenAIConfigError('API Key de OpenAI no configurada. Asegúrate de tener VITE_OPENAI_API_KEY en tu .env');
+    }
+    
     try {
-        return new OpenAI({
+        const client = new OpenAI({
             apiKey: currentConfig.apiKey,
-            organization: currentConfig.organization
+            organization: currentConfig.organization,
+            // Solo permitir en desarrollo
+            dangerouslyAllowBrowser: import.meta.env.MODE === 'development'
         });
+        console.log('✅ OpenAI Config - Cliente creado exitosamente');
+        return client;
     } catch (error) {
-        throw new OpenAIConfigError('Error al crear el cliente de OpenAI');
+        console.error('❌ OpenAI Config - Error detallado:', error);
+        throw new OpenAIConfigError('Error al crear el cliente de OpenAI. Verifica tu API Key.');
     }
 };
 
